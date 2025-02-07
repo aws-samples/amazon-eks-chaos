@@ -27,7 +27,7 @@ cd amazon-eks-chaos/terraform/
 ```bash
 terraform init
 terraform plan
-terraform appply
+terraform apply
 ```
 
 Fill in the target EKS version that you would like to create, e.g. 1.32
