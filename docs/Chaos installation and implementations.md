@@ -5,7 +5,7 @@
 
 ```
 kubectl create ns app 
-kubectl apply -f https://github.com/JJanetLi/chaos-eks-fis-aws/blob/app/app/retail-store-sample-app.yaml -n app
+kubectl apply -f https://github.com/aws-samples/amazon-eks-chaos/blob/main/app/retail-store-sample-app.yaml -n app
 ```
 
 **Note - replace xxxxxx to your own AWS account number**

@@ -58,13 +58,13 @@ variable "gitops_addons_path" {
 
 variable "workload_repo" {
   type = string
-  default = "https://github.com/JJanetLi/chaos-eks-fis-aws"
+  default = "https://github.com/aws-samples/amazon-eks-chaos"
 }
 
 variable "gitops_workload_revision" {
   description = "Git repository revision/branch/ref for workload"
   type        = string
-  default     = "app"
+  default     = "main"
 }
 variable "gitops_workload_basepath" {
   description = "Git repository base path for workload"
