@@ -1,15 +1,15 @@
 # Pre-reqs 
 
-1 -  EKS cluster deployed 
-2 - Follow below command to create app namespace and deploy application in app namespace
+1 -  EKS cluster deployed                         
+2 - Follow below command to create app namespace and deploy application in app namespace    
 
+**Note - replace <replaceallwithyourownpassword> to create your own database password**
 ```
-kubectl create ns app 
+kubectl create ns app
+kubectl create secret generic catalog-db --from-literal=username=catalog --from-literal=password=<replaceallwithyourownpassword> -n app 
+kubectl create secret generic orders-db --from-literal=username=orders --from-literal=password=<replaceallwithyourownpassword> -n app
 kubectl apply -f https://github.com/aws-samples/amazon-eks-chaos/blob/main/app/retail-store-sample-app.yaml -n app
 ```
-
-**Note - replace xxxxxx to your own AWS account number**
-
 # Chaos Mesh 
 
 ## Installation 
@@ -238,6 +238,7 @@ Use below command to bind fis role with above RBAC permission granted:
 ```
 aws eks create-access-entry --cluster-name chaos-cluster --principal-arn arn:aws:iam::xxxxxx:role/fis-role --type STANDARD --kubernetes-groups fis --region us-east-1
 ```
+**Note - replace xxxxxx to your own AWS account number**
 
 ## Step 4 - Create FIS experiment template - Litmus Chaos 
 
