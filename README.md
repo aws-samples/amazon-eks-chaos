@@ -72,7 +72,7 @@ Follow below command to create app namespace and deploy application in app names
 
 **Note - Replace `<replaceallwithyourownpassword>` to create your own database password**, the plain text will be automatically base64 encoded during secret creation.
 
-```
+```bash
 kubectl create namespace app
 kubectl create secret generic catalog-db --from-literal=username=catalog --from-literal=password=<replaceallwithyourownpassword> -n app 
 kubectl create secret generic orders-db --from-literal=username=orders --from-literal=password=<replaceallwithyourownpassword> -n app
@@ -84,22 +84,23 @@ kubectl apply -f https://github.com/aws-samples/amazon-eks-chaos/blob/main/app/r
 
 #### 3.1 - Add chaos mesh repo to helm
 
-```
+```bash
 helm repo add chaos-mesh https://charts.chaos-mesh.org
 helm repo update
 ```
 #### 3.2 - Install Chaos Mesh with containerd runtime 
-```yaml
+
+```bash
 helm install chaos-mesh chaos-mesh/chaos-mesh -n=chaos-mesh --set chaosDaemon.runtime=containerd --set chaosDaemon.socketPath=/run/containerd/containerd.sock --version 2.7.0 --create-namespace
 ```
 #### 3.3 - Verify the installations 
 
-```
+```bash
  kubectl get pods --namespace chaos-mesh -l app.kubernetes.io/instance=chaos-mesh
 ```
 
 expected output:  
-```
+```bash
 chaos-controller-manager-86fd989fd-4qsnt   1/1     Running   0          54s
 chaos-controller-manager-86fd989fd-vgls5   1/1     Running   0          54s
 chaos-controller-manager-86fd989fd-zjf9p   1/1     Running   0          54s
@@ -113,24 +114,24 @@ chaos-dns-server-66d757d748-76j9g          1/1     Running   0          54s
 
 #### 4.1 - Add Litmus helm repo 
 
-```
+```bash
 helm repo add litmuschaos https://litmuschaos.github.io/litmus-helm/
 helm repo update
 ```
 #### 4.2 - Install Litmus Mesh 
 
-```yaml
+```bash
 kubectl apply -f https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/examples/kubernetes/dynamic-provisioning/manifests/storageclass.yaml - maynot need if add on 
 helm install chaos litmuschaos/litmus --namespace=litmus --set portal.frontend.service.type=NodePort --set mongodb.global.storageClass=ebs-sc --create-namespace
 ```
 #### 4.3 - Verify the installations, it takes a few mins for pod set up 
 
-```
+```bash
 kubectl get pods -n litmus
 ```
 
 expected output:  
-```
+```bash
 chaos-litmus-auth-server-6db8c96466-hl5ps   1/1     Running   0          2m18s
 chaos-litmus-frontend-699547f68b-xddf2      1/1     Running   0          2m18s
 chaos-litmus-server-54656496c5-pt4gw        1/1     Running   0          2m18s
@@ -142,13 +143,13 @@ chaos-mongodb-arbiter-0                     1/1     Running   0          2m17s
 
 #### Step 4.4 - Install LitmusChaos Operator where it installs all the CRDs required for litmus 
 
-```
+```bash
 kubectl apply -f https://litmuschaos.github.io/litmus/litmus-operator-v1.13.8.yaml
 ```
 
 Verified installation with below command and expected output 
 
-```
+```bash
 kubectl get pods -n litmus  | grep ope
 chaos-operator-ce-5577475cf5-rbzzh          1/1     Running   0          21s
 ```
@@ -164,7 +165,7 @@ The permissions required to use this action are controlled by Kubernetes using R
 
 Create trust policy Json:
 
-```
+```bash
 cat >fis-role-trust-policy.json <<EOF
 {
     "Version": "2012-10-17",
@@ -185,12 +186,12 @@ EOF
 
 Create fis role with above trust relationship: 
 
-```
+```bash
 aws iam create-role --role-name fis-role --assume-role-policy-document file://fis-role-trust-policy.json 
 ```
 
 Expected outcome: 
-```
+```bash
 {
     "Role": {
         "Path": "/",
@@ -204,12 +205,12 @@ Expected outcome:
 
 Create CloudWatch log group: 
 
-```
+```bash
 aws logs create-log-group --log-group-name fis-chaos
 ```
 
 Enable fis-role with CloudWatch related permissions: 
-```
+```bash
 cat >fis-log.json <<EOF
 {
     "Version": "2012-10-17",
@@ -232,21 +233,20 @@ EOF
 
 Create Policy: 
 
-```
+```bash
 aws iam create-policy --policy-name fis-log --policy-document file://fis-log.json 
 ```
 
 Attach the policy to FIS role: 
 
-```
+```bash
 aws iam attach-role-policy --policy-arn arn:aws:iam::<accountnumber>:policy/fis-log --role-name fis-role
 ```
 
 #### 5.3 - Grant FIS role EKS RBAC access
 
 Grant minimal RBAC privilege for FIS role to interact with litmus chaos and chaos-mesh api resources.: 
-
-```
+```bash
 cat >rbac-fis-role.yaml <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -308,7 +308,7 @@ kubectl apply -f rbac-fis-role.yaml
 
 Use below command to bind fis role with above RBAC permission granted: 
 
-```
+```bash
 aws eks create-access-entry --cluster-name chaos-cluster --principal-arn arn:aws:iam::xxxxxx:role/fis-role --type STANDARD --kubernetes-groups fis 
 ```
 **Note - replace xxxxxx to your own AWS account number**
@@ -323,12 +323,12 @@ http reset peer chaos experiment injects http reset on the service whose port is
 
 Use below command:
 
-```
+```bash
 kubectl apply -f "https://hub.litmuschaos.io/api/chaos/master?file=faults/kubernetes/pod-http-reset-peer/fault.yaml" -n app
 ```
 Verify the installation:
 
-```
+```bash
 kubectl get chaosexperiments -n app | grep http
 pod-http-reset-peer   6s
 ```
@@ -337,7 +337,7 @@ pod-http-reset-peer   6s
 
 Please copy below content and save as pod-http-reset-peer-rbac.yaml, change the namespace to the namespace where application is deployed: 
 
-```
+```bash
 cat >pod-http-reset-peer-rbac.yaml <<EOF
 ---
 apiVersion: v1
@@ -424,7 +424,7 @@ EOF
 
 Use below command to apply: 
 
-```
+```bash
 kubectl apply -f pod-http-reset-peer-rbac.yaml 
 ```
 
@@ -433,13 +433,12 @@ kubectl apply -f pod-http-reset-peer-rbac.yaml
 Use below command to create FIS experiment template, please replace value for cluster arn, ui pod name, fis role arn, CloudWatch Log group: 
 
 Get ui pod name: 
-```
+```bash
 kubectl get pod -n app | grep ui 
 ui-cc49d69f-xcqxn                 1/1     Running 
-
 ```
 
-```
+```bash
 aws fis create-experiment-template \
     --cli-input-json '{
         "description": "fis-litmus-chaos",
@@ -489,12 +488,12 @@ aws fis create-experiment-template \
 ```
 
 Record experiment template ID or query the experiment template ID 
-```
+```bash
 aws fis list-experiment-templates | grep lit -B1
 ```
 
 Expected outcome 
-```
+```bash
  "id": "EXT5ZByKtF4sgEL",
  "description": "fis-litmus-chaos",
 ```
@@ -504,20 +503,20 @@ Expected outcome
 Verify pod is up and running before running the FIS experiment: 
 
 Get ui pod IP 
-```
+```bash
 kubectl get pod -n app -o wide | grep ui 
 ui-d6bddf848-ghr4b                1/1     Running   2 (6d ago)    10d   172.31.38.116   ip-172-31-47-5.ec2.internal   <none>           <none>
 ```
 
 Deploy a pod with networking utility pre-installed to check the test response: 
-```
+```bash
 kubectl apply -f https://k8s.io/examples/admin/dns/dnsutils.yaml
 kubectl exec -it dnsutils -- bash
 ```
 
 Check HTTP response before Fault injection with below expected HTTP 200 response code: 
 
-```
+```bash
 bash-5.0# curl 172.31.30.32:8080 -kv
 *   Trying 172.31.30.32:8080...
 * Connected to 172.31.30.32 (172.31.30.32) port 8080 (#0)
@@ -532,12 +531,12 @@ bash-5.0# curl 172.31.30.32:8080 -kv
 ```
 
 Run experiment: 
-```
+```bash
 aws fis start-experiment --experiment-template-id EXT5ZByKtF4sgEL 
 ```
 
 Output: 
-```
+```bash
 {
     "experiment": {
         "id": "EXPpH5gti5bgNFXv1Y",
@@ -546,7 +545,7 @@ Output:
 ```
 
 During experiment, see the connection reset error triggered 
-```
+```bash
  curl 172.31.30.32:8080 -kv
 *   Trying 172.31.30.32:8080...
 * Connected to 172.31.30.32 (172.31.30.32) port 8080 (#0)
@@ -562,7 +561,7 @@ curl: (52) Empty reply from server
 
 Verify the expriment is in completed status: 
 
-```
+```bash
 aws fis get-experiment --id EXPpH5gti5bgNFXv1Y | grep status 
             "status": "completed",
                     "status": "completed",
@@ -576,13 +575,13 @@ Chaos Mesh offers a diverse range of Kubernetes chaos experiments. The container
 
 Pod label can be be used to select pod target, use below command to show labels for each pod in a particular namespace 
 
-```
+```bash
 kubectl get pod -n app --show-labels | grep checkout
 checkout-7b68fd5f58-llwbb         1/1     Running   0              4d11h   app.kuberneres.io/owner=retail-store-sample,app.kubernetes.io/component=service,app.kubernetes.io/instance=checkout,app.kubernetes.io/name=checkout,pod-template-hash=7b68fd5f58
 ```
 
 Use below command to grep checkout pod container name: 
-```
+```bash
 kubectl get pod checkout-7b68fd5f58-llwbb -o jsonpath='{.spec.containers[*].name}' -n app          
 checkout               
 ```
@@ -590,7 +589,7 @@ checkout
 
 Use below command to create FIS experiment template: 
 
-```
+```bash
 aws fis create-experiment-template \
     --cli-input-json '{
         "description": "chaos-mesh-container-kill",
@@ -643,12 +642,12 @@ aws fis create-experiment-template \
 
 Record experiment template ID or query the experiment template ID: 
 
-```
+```bash
 aws fis list-experiment-templates --region us-east-1 | grep chaos-mesh -B1
 ```
 
 Expected outcome: 
-```
+```bash
  "id": "EXT3biMwNMevDYtg8",
  "description": "chaos-mesh-container-kill",
 ```
@@ -660,31 +659,31 @@ chaos-mesh is facing an known limit documented in github issue (https://github.c
 
 Error when run chaos injection captured from chaos-mesh controller log: 
 
-```
+```bash
 2024-07-01T13:58:23.946Z        DEBUG   controller-runtime.webhook.webhooks     admission/http.go:143   wrote response  {"webhook": "/validate-auth", "code": 403, "reason": "fis is forbidden on namespace app", "UID": "f05fbce2-4a23-4dd5-9d7f-78cbfa5cc574", "allowed": false}
 ```
 
 Proposed fix: 
 
-```
+```bash
 kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io chaos-mesh-validation-auth
 ```
 
 Verify check out pod status: 
 
-```
+```bash
 kubectl get pod -n app | grep checkout  
 checkout-778f5f98cf-q92gn         1/1     Running   0             53s
 ```
 
 Run experiment 
 
-```
+```bash
 aws fis start-experiment --experiment-template-id EXT3biMwNMevDYtg8
 ```
 
 Output: 
-```
+```bash
 {
     "experiment": {
         "id": "EXPFUuXSsHEugGq9aS",
@@ -693,7 +692,7 @@ Output:
 ```
 
 Verify the experiment is in completed status:
-```
+```bash
 aws fis get-experiment --id EXPFUuXSsHEugGq9aS | grep status 
             "status": "completed",
                     "status": "completed",
@@ -704,7 +703,8 @@ Check pod status, and verify the container is restarted:
 kubectl get pod -n app | grep checkout 
 checkout-778f5f98cf-q92gn         1/1     Running   1 (4m8s ago)   6m4s
 ```
-```
+
+```bash
 kubectl describe pod -n app checkout-778f5f98cf-q92gn
 
   Restart Count:  1
@@ -720,24 +720,19 @@ Events:
 
 Check chaos mesh log for successful executions: 
 
-```
+```bash
 kubectl logs -n chaos-mesh -l app.kubernetes.io/component=controller-manager
 ```
 
 ## Clean up 
 
-### Uninstall Chaos Mesh and Litmus Chaos
+### Uninstall Chaos Mesh, Litmus Chaos and sample applications
 
-```
+```bash
 helm uninstall chaos-mesh -n chaos-mesh
 helm uninstall chaos -n litmus
 kubectl delete namespace -n chaos-mesh
 kubectl delete namespace -n litmus
-```
-
-### Remove sample applications 
-
-```
 kubectl delete -f https://github.com/aws-samples/amazon-eks-chaos/blob/main/app/retail-store-sample-app.yaml -n app
 kubectl delete namespace -n app
 ```
