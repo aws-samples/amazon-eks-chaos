@@ -51,6 +51,7 @@ provider "kubectl" {
 }
 
 
+
 ################################################################################
 # GitOps Bridge: Bootstrap
 ################################################################################
@@ -109,7 +110,7 @@ module "eks_blueprints_addons" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.33"
+  version = "~> 20.37"
 
   cluster_name                   = local.name
   #cluster_version                = "1.31"
@@ -123,14 +124,26 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.public_subnets
-
   eks_managed_node_groups = {
     mg_5 = {
-      instance_types = ["m5.large"]
+      instance_types = ["t3.large"]
       name = "managed-workload"
       min_size     = 1
       max_size     = 5
       desired_size = 2
+      
+      # Security Fix: Force IMDSv2
+      metadata_options = {
+        http_endpoint = "enabled"
+        http_tokens   = "required"
+        http_put_response_hop_limit = 2
+        instance_metadata_tags = "disabled"
+      }
+      
+      # Security Fix: Add SSM policy for PVRE complianceAIMLAoD/AIAgents/OpenshiftToEKS/EKS_Creation/terraform/security.tf
+      iam_role_additional_policies = {
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }
     }
   }
 
