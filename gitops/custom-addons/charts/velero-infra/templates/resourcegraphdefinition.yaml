@@ -1,0 +1,97 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: velero-infra
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: VeleroInfra
+    spec:
+      clusterName: string
+      namespace: string | default="velero"
+      region: string
+      accountId: string
+      oidcProviderArn: string
+      oidcProviderUrl: string
+    status:
+      iamRoleArn: ${iamRole.status.ackResourceMetadata.arn}
+      bucketName: ${bucket.spec.name}
+  resources:
+    # 1. S3 Bucket for Velero backups (no dependency — created in parallel with IAM Role)
+    - id: bucket
+      template:
+        apiVersion: s3.services.k8s.aws/v1alpha1
+        kind: Bucket
+        metadata:
+          name: ${schema.spec.clusterName}-velero-backups
+          namespace: ${schema.spec.namespace}
+        spec:
+          name: ${schema.spec.clusterName}-velero-backups-${schema.spec.accountId}
+          tagging:
+            tagSet:
+              - key: ManagedBy
+                value: KRO
+              - key: Cluster
+                value: ${schema.spec.clusterName}
+
+    # 2. IAM Role for Velero IRSA (no dependency — created in parallel with S3 Bucket)
+    - id: iamRole
+      template:
+        apiVersion: iam.services.k8s.aws/v1alpha1
+        kind: Role
+        metadata:
+          name: ${schema.spec.clusterName}-velero
+          namespace: ${schema.spec.namespace}
+        spec:
+          name: ${schema.spec.clusterName}-velero
+          assumeRolePolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "${schema.spec.oidcProviderArn}"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "${schema.spec.oidcProviderUrl}:sub": "system:serviceaccount:${schema.spec.namespace}:velero-server",
+                    "${schema.spec.oidcProviderUrl}:aud": "sts.amazonaws.com"
+                  }
+                }
+              }]
+            }
+          policies:
+            - arn:aws:iam::aws:policy/AmazonS3FullAccess
+          inlinePolicies:
+            velero-ec2: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Action": [
+                      "ec2:DescribeVolumes",
+                      "ec2:DescribeSnapshots",
+                      "ec2:CreateTags",
+                      "ec2:CreateVolume",
+                      "ec2:CreateSnapshot",
+                      "ec2:DeleteSnapshot"
+                    ],
+                    "Resource": "*"
+                  }
+                ]
+              }
+
+    # 3. ServiceAccount with IRSA annotation (depends on iamRole — waits for ARN)
+    - id: serviceAccount
+      template:
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: velero-server
+          namespace: ${schema.spec.namespace}
+          annotations:
+            eks.amazonaws.com/role-arn: ${iamRole.status.ackResourceMetadata.arn}
+      # Dependency on iamRole is implicit via ${iamRole.status.ackResourceMetadata.arn}
+      # in the annotation — KRO waits for the IAM Role ARN before creating the SA.

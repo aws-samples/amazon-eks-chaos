@@ -1,0 +1,670 @@
+# CIS EKS Benchmark v1.8.0 - Kyverno ClusterPolicies
+#
+# 16 policies covering CIS Amazon EKS Benchmark v1.8.0 (Sections 4 & 5).
+# All policies default to Audit mode. Change validationFailureAction to
+# "Enforce" when ready.
+#
+# Excluded namespaces: kube-system, kube-public, kube-node-lease, kyverno,
+# gatekeeper-system, monitoring, logging
+
+# ==========================================================================
+# Section 4 - RBAC & Service Accounts
+# ==========================================================================
+
+# CIS 4.1.1 - Restrict ClusterRoleBinding to cluster-admin
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-4-1-1-restrict-cluster-admin-binding
+  annotations:
+    policies.kyverno.io/title: Restrict cluster-admin ClusterRoleBinding
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 4.1.1 - Restrict creation of ClusterRoleBindings to the
+      cluster-admin ClusterRole.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: restrict-cluster-admin-binding
+      match:
+        any:
+          - resources:
+              kinds:
+                - ClusterRoleBinding
+      validate:
+        message: "Binding to the cluster-admin ClusterRole is restricted (CIS 4.1.1)."
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.roleRef.name }}"
+                operator: Equals
+                value: cluster-admin
+---
+# CIS 4.1.5 - Prevent default ServiceAccount token auto-mount
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-4-1-5-disallow-default-sa-token
+  annotations:
+    policies.kyverno.io/title: Disallow default ServiceAccount token auto-mount
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 4.1.5 - Pods should not auto-mount the default ServiceAccount token.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-default-sa-token
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Default ServiceAccount token auto-mounting must be disabled (CIS 4.1.5).
+          Set automountServiceAccountToken: false or use a dedicated ServiceAccount.
+        pattern:
+          spec:
+            automountServiceAccountToken: false
+---
+# CIS 4.1.6 - Prevent pods from using default ServiceAccount
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-4-1-6-disallow-default-sa-usage
+  annotations:
+    policies.kyverno.io/title: Disallow use of default ServiceAccount
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 4.1.6 - Pods should not use the default ServiceAccount.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-default-sa-usage
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "Pods must not use the 'default' ServiceAccount (CIS 4.1.6)."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.serviceAccountName || 'default' }}"
+                operator: Equals
+                value: default
+---
+# ==========================================================================
+# Section 5 - Pod Security
+# ==========================================================================
+
+# CIS 5.1.1 - Containers must not run as root
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-1-require-non-root-containers
+  annotations:
+    policies.kyverno.io/title: Require non-root containers
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.1.1 - Containers must run as non-root. Set runAsNonRoot: true.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Containers must not run as root (CIS 5.1.1). Set
+          spec.securityContext.runAsNonRoot or
+          spec.containers[*].securityContext.runAsNonRoot to true.
+        anyPattern:
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+          - spec:
+              containers:
+                - securityContext:
+                    runAsNonRoot: true
+---
+# CIS 5.1.2 - Containers must use non-root group IDs
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-2-require-non-root-groups
+  annotations:
+    policies.kyverno.io/title: Require non-root group IDs
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.1.2 - Containers must use non-root group IDs (runAsGroup > 0).
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-non-root-groups
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "Containers must set a non-root runAsGroup (> 0) (CIS 5.1.2)."
+        pattern:
+          spec:
+            securityContext:
+              runAsGroup: ">0"
+---
+# CIS 5.1.3 - Must set allowPrivilegeEscalation=false
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-3-disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow privilege escalation
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.1.3 - Containers must set allowPrivilegeEscalation to false.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Privilege escalation is not allowed (CIS 5.1.3). Set
+          containers[*].securityContext.allowPrivilegeEscalation to false.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+---
+# CIS 5.1.4 - Must not run in privileged mode
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-4-disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow privileged containers
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.1.4 - Containers must not run in privileged mode.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Privileged mode is not allowed (CIS 5.1.4). Set
+          containers[*].securityContext.privileged to false.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  privileged: false
+---
+# CIS 5.1.5 - No hostPID, hostIPC, or hostNetwork
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-5-disallow-host-namespaces
+  annotations:
+    policies.kyverno.io/title: Disallow host namespaces
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.1.5 - Pods must not use host PID, IPC, or network namespaces.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-host-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "Host namespaces (hostPID, hostIPC, hostNetwork) are not allowed (CIS 5.1.5)."
+        pattern:
+          spec:
+            =(hostPID): false
+            =(hostIPC): false
+            =(hostNetwork): false
+---
+# CIS 5.1.6 - Drop ALL capabilities, only allow NET_BIND_SERVICE
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-1-6-restrict-capabilities
+  annotations:
+    policies.kyverno.io/title: Restrict container capabilities
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.1.6 - Containers must drop ALL capabilities and may only add
+      NET_BIND_SERVICE.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-drop-all
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Containers must drop ALL capabilities (CIS 5.1.6). Only
+          NET_BIND_SERVICE may be added.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL
+                    =(add):
+                      - NET_BIND_SERVICE
+---
+# CIS 5.2.1 - Require readOnlyRootFilesystem
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-2-1-require-read-only-root-fs
+  annotations:
+    policies.kyverno.io/title: Require read-only root filesystem
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.2.1 - Containers must set readOnlyRootFilesystem to true.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-read-only-root-fs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: >-
+          Root filesystem must be read-only (CIS 5.2.1). Set
+          containers[*].securityContext.readOnlyRootFilesystem to true.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+---
+# CIS 5.2.2 - Disallow hostPath volumes
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-2-2-disallow-host-path
+  annotations:
+    policies.kyverno.io/title: Disallow hostPath volumes
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      CIS 5.2.2 - Pods must not mount hostPath volumes.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-host-path
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "hostPath volumes are not allowed (CIS 5.2.2)."
+        pattern:
+          spec:
+            =(volumes):
+              - X(hostPath): null
+---
+# CIS 5.2.3 - Disallow hostPort
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-2-3-disallow-host-ports
+  annotations:
+    policies.kyverno.io/title: Disallow hostPort
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.2.3 - Containers must not use hostPort.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-host-ports
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "hostPort is not allowed (CIS 5.2.3)."
+        pattern:
+          spec:
+            containers:
+              - =(ports):
+                  - =(hostPort): 0
+---
+# CIS 5.3.1 - Require CPU and memory limits
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-3-1-require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require resource limits
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.3.1 - Containers must specify CPU and memory limits.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "CPU and memory limits are required (CIS 5.3.1)."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
+---
+# CIS 5.3.2 - Require CPU and memory requests
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-3-2-require-resource-requests
+  annotations:
+    policies.kyverno.io/title: Require resource requests
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.3.2 - Containers must specify CPU and memory requests.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-resource-requests
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "CPU and memory requests are required (CIS 5.3.2)."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+---
+# CIS 5.7.1 - Require app.kubernetes.io/name label
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-7-1-require-labels
+  annotations:
+    policies.kyverno.io/title: Require app.kubernetes.io/name label
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      CIS 5.7.1 - Pods must have the app.kubernetes.io/name label.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "The label 'app.kubernetes.io/name' is required (CIS 5.7.1)."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+---
+# CIS 5.7.2 - Require liveness and readiness probes
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cis-5-7-2-require-probes
+  annotations:
+    policies.kyverno.io/title: Require liveness and readiness probes
+    policies.kyverno.io/category: CIS EKS Benchmark v1.8.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      CIS 5.7.2 - Containers must define liveness and readiness probes.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-probes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - kyverno
+                - gatekeeper-system
+                - monitoring
+                - logging
+      validate:
+        message: "Liveness and readiness probes are required (CIS 5.7.2)."
+        pattern:
+          spec:
+            containers:
+              - livenessProbe:
+                  periodSeconds: ">0"
+                readinessProbe:
+                  periodSeconds: ">0"

@@ -1,0 +1,70 @@
+# ACK-managed Velero infrastructure (manual deployment workaround)
+#
+# This file creates the S3 bucket and IAM role for Velero using ACK CRDs.
+# Use this when deploying Velero IRSA manually (Approach B without KRO).
+#
+# Before applying, replace the following placeholders:
+#   CLUSTER_NAME   - your EKS cluster name
+#   ACCOUNT_ID     - your AWS account ID
+#   OIDC_PROVIDER  - OIDC provider URL without https:// prefix
+#                    (e.g. oidc.eks.us-east-1.amazonaws.com/id/ABCDEF123456)
+#   OIDC_ARN       - full OIDC provider ARN
+#                    (e.g. arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/ABCDEF123456)
+#
+# Usage:
+#   export CLUSTER_NAME=my-cluster ACCOUNT_ID=123456789012
+#   export OIDC_ARN=$(aws eks describe-cluster --name $CLUSTER_NAME --query 'cluster.identity.oidc.issuer' --output text | sed 's|https://||')
+#   export OIDC_PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/${OIDC_ARN}"
+#   envsubst < this-file.yaml | kubectl apply -f -
+---
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: ${CLUSTER_NAME}-velero-backups
+  namespace: velero
+  labels:
+    app.kubernetes.io/managed-by: ack
+    app.kubernetes.io/part-of: velero-infra
+spec:
+  name: ${CLUSTER_NAME}-velero-backups-${ACCOUNT_ID}
+  tagging:
+    tagSet:
+      - key: ManagedBy
+        value: ACK
+      - key: Cluster
+        value: ${CLUSTER_NAME}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: ${CLUSTER_NAME}-velero
+  namespace: velero
+  labels:
+    app.kubernetes.io/managed-by: ack
+    app.kubernetes.io/part-of: velero-infra
+spec:
+  name: ${CLUSTER_NAME}-velero
+  assumeRolePolicyDocument: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "${OIDC_PROVIDER_ARN}"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringEquals": {
+            "${OIDC_ARN}:sub": "system:serviceaccount:velero:velero-server",
+            "${OIDC_ARN}:aud": "sts.amazonaws.com"
+          }
+        }
+      }]
+    }
+  policies:
+    - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  tags:
+    - key: ManagedBy
+      value: ACK
+    - key: Cluster
+      value: ${CLUSTER_NAME}

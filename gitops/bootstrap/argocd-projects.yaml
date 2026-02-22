@@ -1,0 +1,68 @@
+# Three AppProjects to separate concerns:
+# - cluster-addons: standard infrastructure addons (LBC, metrics-server, etc.)
+# - custom-addons: org-specific addons (Prisma, New Relic, etc.)
+# - tenants: tenant workload namespaces and resources
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cluster-addons
+  namespace: argocd
+spec:
+  description: Standard EKS cluster addons
+  sourceRepos:
+    - '*'
+  sourceNamespaces:
+    - argocd
+  destinations:
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: custom-addons
+  namespace: argocd
+spec:
+  description: Organization-specific addons
+  sourceRepos:
+    - '*'
+  sourceNamespaces:
+    - argocd
+  destinations:
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  description: Tenant workloads and namespace configuration
+  sourceRepos:
+    - '*'
+  sourceNamespaces:
+    - argocd
+  destinations:
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

@@ -1,0 +1,12 @@
+apiVersion: v1alpha1
+kind: VeleroInfra
+metadata:
+  name: velero-infra
+  namespace: velero
+spec:
+  clusterName: "{{ .Values.clusterName }}"
+  namespace: velero
+  region: "{{ .Values.region }}"
+  accountId: "{{ .Values.accountId }}"
+  oidcProviderArn: "{{ .Values.oidcProviderArn }}"
+  oidcProviderUrl: "{{ .Values.oidcProviderUrl }}"

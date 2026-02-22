@@ -1,0 +1,42 @@
+# Tenant ApplicationSet using annotation-based discovery.
+# Tenant definitions are stored in the gitops repo under tenants/workloads/ directory.
+#
+# NOTE: Requires a real git repository URL. Uses a matrix generator combining
+# clusters (for server/annotations) with a git directory generator.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenants
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  argocd.argoproj.io/secret-type: cluster
+          - git:
+              repoURL: '{{metadata.annotations.gitops_repo_url}}'
+              revision: '{{metadata.annotations.gitops_repo_revision}}'
+              directories:
+                - path: gitops/tenants/workloads/*
+  template:
+    metadata:
+      name: 'tenant-{{path.basename}}'
+    spec:
+      project: tenants
+      source:
+        repoURL: '{{metadata.annotations.gitops_repo_url}}'
+        targetRevision: '{{metadata.annotations.gitops_repo_revision}}'
+        path: '{{path}}'
+      destination:
+        server: '{{server}}'
+        namespace: '{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

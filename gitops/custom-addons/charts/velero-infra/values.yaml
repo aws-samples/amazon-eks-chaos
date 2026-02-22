@@ -1,0 +1,6 @@
+# These values are injected by ArgoCD from GitOps Bridge annotations
+clusterName: ""
+region: ""
+accountId: ""
+oidcProviderArn: ""
+oidcProviderUrl: ""

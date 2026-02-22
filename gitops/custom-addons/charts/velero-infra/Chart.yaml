@@ -1,0 +1,5 @@
+apiVersion: v2
+name: velero-infra
+description: KRO-managed Velero infrastructure (IAM Role + S3 Bucket + ServiceAccount)
+type: application
+version: 0.1.0

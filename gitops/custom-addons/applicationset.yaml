@@ -1,0 +1,61 @@
+# Directory-generator ApplicationSet for custom org addons.
+# Each subdirectory in gitops/custom-addons/charts/ becomes a custom addon Application.
+#
+# NOTE: This ApplicationSet requires a real git repository URL. It uses a matrix
+# generator that combines the clusters generator (for server/annotations) with a
+# git directory generator (to scan charts/).
+#
+# For ArgoCD EKS Capability, the server must be the cluster ARN.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: custom-addons
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  argocd.argoproj.io/secret-type: cluster
+          - git:
+              repoURL: '{{metadata.annotations.gitops_repo_url}}'
+              revision: '{{metadata.annotations.gitops_repo_revision}}'
+              directories:
+                - path: gitops/custom-addons/charts/*
+  goTemplate: true
+  goTemplateOptions: ["missingkey=zero"]
+  template:
+    metadata:
+      name: 'custom-{{path.basename}}'
+    spec:
+      project: custom-addons
+      source:
+        repoURL: '{{metadata.annotations.gitops_repo_url}}'
+        targetRevision: '{{metadata.annotations.gitops_repo_revision}}'
+        path: '{{path}}'
+      destination:
+        server: '{{server}}'
+        namespace: '{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+  # Per-chart Helm values injected from GitOps Bridge cluster secret annotations.
+  # velero-infra needs OIDC provider info for KRO to create IRSA roles via ACK.
+  templatePatch: |
+    {{- if eq (index . "path.basename") "velero-infra" }}
+    spec:
+      source:
+        helm:
+          valuesObject:
+            clusterName: {{ .metadata.annotations.cluster_name }}
+            region: {{ .metadata.annotations.aws_region }}
+            accountId: {{ .metadata.annotations.aws_account_id }}
+            oidcProviderArn: {{ .metadata.annotations.oidc_provider_arn }}
+            oidcProviderUrl: {{ .metadata.annotations.oidc_provider_url }}
+    {{- end }}
