@@ -20,24 +20,24 @@ spec:
                 matchLabels:
                   argocd.argoproj.io/secret-type: cluster
           - git:
-              repoURL: '{{metadata.annotations.gitops_repo_url}}'
-              revision: '{{metadata.annotations.gitops_repo_revision}}'
+              repoURL: '{{ index .metadata.annotations "gitops_repo_url" }}'
+              revision: '{{ index .metadata.annotations "gitops_repo_revision" }}'
               directories:
                 - path: gitops/custom-addons/charts/*
   goTemplate: true
   goTemplateOptions: ["missingkey=zero"]
   template:
     metadata:
-      name: 'custom-{{path.basename}}'
+      name: 'custom-{{ index . "path.basename" }}'
     spec:
       project: custom-addons
       source:
-        repoURL: '{{metadata.annotations.gitops_repo_url}}'
-        targetRevision: '{{metadata.annotations.gitops_repo_revision}}'
-        path: '{{path}}'
+        repoURL: '{{ .metadata.annotations.gitops_repo_url }}'
+        targetRevision: '{{ .metadata.annotations.gitops_repo_revision }}'
+        path: '{{ .path }}'
       destination:
-        server: '{{server}}'
-        namespace: '{{path.basename}}'
+        server: '{{ .server }}'
+        namespace: '{{ index . "path.basename" }}'
       syncPolicy:
         automated:
           prune: true
