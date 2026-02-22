@@ -105,29 +105,6 @@ module "eks_blueprints_addons" {
 
 
 ################################################################################
-# AWS Load Balancer Controller
-################################################################################
-resource "helm_release" "aws_load_balancer_controller" {
-  name       = "aws-load-balancer-controller"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
-  version    = "1.14.0"
-  namespace  = "kube-system"
-
-  set {
-    name  = "clusterName"
-    value = module.eks.cluster_name
-  }
-
-  set {
-    name  = "image.repository"
-    value = "602401143452.dkr.ecr.${local.region}.amazonaws.com/amazon/aws-load-balancer-controller"
-  }
-
-  depends_on = [module.eks]
-}
-
-################################################################################
 # Cluster
 ################################################################################
 
