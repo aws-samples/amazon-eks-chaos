@@ -28,16 +28,16 @@ spec:
   goTemplateOptions: ["missingkey=zero"]
   template:
     metadata:
-      name: 'custom-{{ index . "path.basename" }}'
+      name: 'custom-{{ .path.basename }}'
     spec:
       project: custom-addons
       source:
         repoURL: '{{ .metadata.annotations.gitops_repo_url }}'
         targetRevision: '{{ .metadata.annotations.gitops_repo_revision }}'
-        path: '{{ .path }}'
+        path: '{{ .path.path }}'
       destination:
         server: '{{ .server }}'
-        namespace: '{{ index . "path.basename" }}'
+        namespace: '{{ .path.basename }}'
       syncPolicy:
         automated:
           prune: true
@@ -48,7 +48,7 @@ spec:
   # Per-chart Helm values injected from GitOps Bridge cluster secret annotations.
   # velero-infra needs OIDC provider info for KRO to create IRSA roles via ACK.
   templatePatch: |
-    {{- if eq (index . "path.basename") "velero-infra" }}
+    {{- if eq (.path.basename) "velero-infra" }}
     spec:
       source:
         helm:
