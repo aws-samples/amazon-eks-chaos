@@ -55,7 +55,7 @@ spec:
         helm:
           valuesObject:
             clusterName: {{ .metadata.annotations.cluster_name }}
-            accountId: {{ .metadata.annotations.aws_account_id }}
+            accountId: "{{ .metadata.annotations.aws_account_id }}"
     {{- end }}
     {{- if eq (.path.basename) "cis-benchmark" }}
     spec:
