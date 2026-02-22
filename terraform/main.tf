@@ -58,6 +58,10 @@ provider "kubectl" {
 module "gitops_bridge_bootstrap" {
   source = "gitops-bridge-dev/gitops-bridge/helm"
 
+  argocd = {
+    chart_version = "9.4.3"
+  }
+
   cluster = {
     cluster_name = module.eks.cluster_name
     environment  = "dev"
