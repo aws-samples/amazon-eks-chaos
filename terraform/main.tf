@@ -72,7 +72,7 @@ module "gitops_bridge_bootstrap" {
 ################################################################################
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.21.1"
+  version = "~> 1.23"
 
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
@@ -105,16 +105,39 @@ module "eks_blueprints_addons" {
 
 
 ################################################################################
+# AWS Load Balancer Controller
+################################################################################
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.14.0"
+  namespace  = "kube-system"
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "image.repository"
+    value = "602401143452.dkr.ecr.${local.region}.amazonaws.com/amazon/aws-load-balancer-controller"
+  }
+
+  depends_on = [module.eks]
+}
+
+################################################################################
 # Cluster
 ################################################################################
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.37"
+  version = "~> 21.15"
 
-  cluster_name                   = local.name
+  name                   = local.name
   #cluster_version                = "1.31"
-  cluster_endpoint_public_access = true
+  endpoint_public_access = true
   # Cluster access entry
   # To add the current caller identity as an administrator
   enable_cluster_creator_admin_permissions = true
@@ -148,7 +171,7 @@ module "eks" {
   }
 
   # EKS Addons
-  cluster_addons = {
+  addons = {
     coredns    = {
       most_recent = true
     }
