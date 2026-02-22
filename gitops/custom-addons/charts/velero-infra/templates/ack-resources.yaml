@@ -1,6 +1,8 @@
-# ACK-managed Velero infrastructure (Approach B — ACK direct, no KRO)
+# ACK-managed Velero S3 bucket for backup storage.
 #
-# Creates the S3 bucket and IAM role for Velero using ACK CRDs.
+# The IAM role and Pod Identity Association are managed by Terraform.
+# ACK creates only the S3 bucket with encryption and public access blocked.
+#
 # Values are injected by ArgoCD from GitOps Bridge cluster secret annotations
 # via the custom-addons ApplicationSet templatePatch.
 ---
@@ -30,57 +32,3 @@ spec:
         value: ACK
       - key: Cluster
         value: {{ .Values.clusterName }}
----
-apiVersion: iam.services.k8s.aws/v1alpha1
-kind: Role
-metadata:
-  name: {{ .Values.clusterName }}-velero
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/managed-by: ack
-    app.kubernetes.io/part-of: velero-infra
-spec:
-  name: {{ .Values.clusterName }}-velero
-  assumeRolePolicyDocument: |
-    {
-      "Version": "2012-10-17",
-      "Statement": [{
-        "Effect": "Allow",
-        "Principal": {
-          "Federated": "{{ .Values.oidcProviderArn }}"
-        },
-        "Action": "sts:AssumeRoleWithWebIdentity",
-        "Condition": {
-          "StringEquals": {
-            "{{ .Values.oidcProviderUrl }}:sub": "system:serviceaccount:{{ .Release.Namespace }}:velero-server",
-            "{{ .Values.oidcProviderUrl }}:aud": "sts.amazonaws.com"
-          }
-        }
-      }]
-    }
-  policies:
-    - arn:aws:iam::aws:policy/AmazonS3FullAccess
-  inlinePolicies:
-    velero-ec2: |
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "ec2:DescribeVolumes",
-              "ec2:DescribeSnapshots",
-              "ec2:CreateTags",
-              "ec2:CreateVolume",
-              "ec2:CreateSnapshot",
-              "ec2:DeleteSnapshot"
-            ],
-            "Resource": "*"
-          }
-        ]
-      }
-  tags:
-    - key: ManagedBy
-      value: ACK
-    - key: Cluster
-      value: {{ .Values.clusterName }}

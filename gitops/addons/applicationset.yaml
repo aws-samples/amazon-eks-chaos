@@ -181,8 +181,6 @@ spec:
               server:
                 create: true
                 name: velero-server
-                annotations:
-                  eks.amazonaws.com/role-arn: arn:aws:iam::{{ .metadata.annotations.aws_account_id }}:role/{{ .metadata.annotations.cluster_name }}-velero
             upgradeCRDs: false
             kubectl:
               image:

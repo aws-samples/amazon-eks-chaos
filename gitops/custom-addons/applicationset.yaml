@@ -46,7 +46,8 @@ spec:
           - CreateNamespace=true
           - ServerSideApply=true
   # Per-chart Helm values injected from GitOps Bridge cluster secret annotations.
-  # velero-infra needs OIDC provider info for KRO to create IRSA roles via ACK.
+  # velero-infra needs cluster name and account ID for the S3 bucket name.
+  # IAM role + Pod Identity Association are managed by Terraform (not ACK).
   templatePatch: |
     {{- if eq (.path.basename) "velero-infra" }}
     spec:
@@ -54,8 +55,5 @@ spec:
         helm:
           valuesObject:
             clusterName: {{ .metadata.annotations.cluster_name }}
-            region: {{ .metadata.annotations.aws_region }}
             accountId: {{ .metadata.annotations.aws_account_id }}
-            oidcProviderArn: {{ .metadata.annotations.oidc_provider_arn }}
-            oidcProviderUrl: {{ .metadata.annotations.oidc_provider_url }}
     {{- end }}
