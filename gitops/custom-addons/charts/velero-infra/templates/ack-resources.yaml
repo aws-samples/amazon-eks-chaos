@@ -20,9 +20,9 @@ spec:
           sseAlgorithm: AES256
         bucketKeyEnabled: true
   publicAccessBlock:
-    blockPublicACLs: true
+    blockPublicAcls: true
     blockPublicPolicy: true
-    ignorePublicACLs: true
+    ignorePublicAcls: true
     restrictPublicBuckets: true
   tagging:
     tagSet:
