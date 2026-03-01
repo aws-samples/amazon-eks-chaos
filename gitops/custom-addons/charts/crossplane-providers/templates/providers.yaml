@@ -14,7 +14,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws-iam:v2.4.0
+  package: xpkg.upbound.io/upbound/provider-aws-iam:v2.2.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -23,4 +23,4 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.4.0
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.2.0
