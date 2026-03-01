@@ -1,0 +1,28 @@
+apiVersion: s3.aws.upbound.io/v1beta2
+kind: Bucket
+metadata:
+  name: {{ .Values.clusterName }}-velero-backups-{{ .Values.accountId }}
+spec:
+  forProvider:
+    region: us-east-1
+    tags:
+      ManagedBy: crossplane
+      Purpose: velero-backups
+  providerConfigRef:
+    name: default
+---
+apiVersion: s3.aws.upbound.io/v1beta2
+kind: BucketPublicAccessBlock
+metadata:
+  name: {{ .Values.clusterName }}-velero-pab
+spec:
+  forProvider:
+    bucketRef:
+      name: {{ .Values.clusterName }}-velero-backups-{{ .Values.accountId }}
+    blockPublicAcls: true
+    blockPublicPolicy: true
+    ignorePublicAcls: true
+    restrictPublicBuckets: true
+    region: us-east-1
+  providerConfigRef:
+    name: default

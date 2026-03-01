@@ -1,11 +1,3 @@
-# Directory-generator ApplicationSet for custom org addons.
-# Each subdirectory in gitops/custom-addons/charts/ becomes a custom addon Application.
-#
-# NOTE: This ApplicationSet requires a real git repository URL. It uses a matrix
-# generator that combines the clusters generator (for server/annotations) with a
-# git directory generator (to scan charts/).
-#
-# For ArgoCD EKS Capability, the server must be the cluster ARN.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -45,9 +37,6 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
-  # Per-chart Helm values injected from GitOps Bridge cluster secret annotations.
-  # velero-infra needs cluster name and account ID for the S3 bucket name.
-  # IAM role + Pod Identity Association are managed by Terraform (not ACK).
   templatePatch: |
     {{- if eq (.path.basename) "velero-infra" }}
     spec:
@@ -60,9 +49,6 @@ spec:
     {{- if eq (.path.basename) "cis-benchmark" }}
     spec:
       syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
         syncOptions:
           - CreateNamespace=true
           - Replace=true

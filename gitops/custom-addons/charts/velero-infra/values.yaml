@@ -1,3 +1,2 @@
-# These values are injected by ArgoCD from GitOps Bridge annotations
-clusterName: ""
-accountId: ""
+clusterName: khp-eks-dev
+accountId: "640480128198"

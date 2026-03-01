@@ -1,0 +1,5 @@
+apiVersion: v2
+name: crossplane-providers
+description: Crossplane AWS providers and ProviderConfig
+version: 0.1.0
+type: application

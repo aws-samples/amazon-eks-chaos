@@ -1,5 +1,5 @@
 apiVersion: v2
 name: velero-infra
-description: ACK-managed Velero infrastructure (IAM Role + encrypted S3 Bucket)
+description: Crossplane-managed S3 bucket for Velero backups
+version: 0.1.0
 type: application
-version: 0.2.0

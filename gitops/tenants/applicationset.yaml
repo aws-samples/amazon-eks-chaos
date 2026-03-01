@@ -1,8 +1,3 @@
-# Tenant ApplicationSet using annotation-based discovery.
-# Tenant definitions are stored in the gitops repo under tenants/workloads/ directory.
-#
-# NOTE: Requires a real git repository URL. Uses a matrix generator combining
-# clusters (for server/annotations) with a git directory generator.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:

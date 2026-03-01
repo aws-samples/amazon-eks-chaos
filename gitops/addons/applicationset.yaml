@@ -1,13 +1,4 @@
-# ApplicationSet that reads GitOps Bridge cluster secret annotations
-# to determine which addons to deploy. Uses a matrix generator with
-# cluster secrets and a list of addon definitions.
-#
-# Per-addon Helm values (IRSA, cluster config) are injected via templatePatch.
-#
-# IMPORTANT for ArgoCD EKS Capability:
-#   - Server must be the cluster ARN (not https://kubernetes.default.svc)
-#   - ArgoCD capability IAM role needs AmazonEKSClusterAdminPolicy
-#   - AppProjects need sourceNamespaces: [argocd]
+# Pattern 2b ApplicationSet — ArgoCD + Crossplane
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -23,26 +14,31 @@ spec:
                   argocd.argoproj.io/secret-type: cluster
           - list:
               elements:
+                - addon: crossplane
+                  namespace: crossplane-system
+                  chart: crossplane
+                  repo: https://charts.crossplane.io/stable
+                  version: "2.2.0"
                 - addon: aws-load-balancer-controller
                   namespace: kube-system
                   chart: aws-load-balancer-controller
                   repo: https://aws.github.io/eks-charts
-                  version: "1.16.0"
+                  version: "1.12.0"
                 - addon: metrics-server
                   namespace: kube-system
                   chart: metrics-server
                   repo: https://kubernetes-sigs.github.io/metrics-server
-                  version: "3.13.0"
-                - addon: cluster-autoscaler
+                  version: "3.12.2"
+                - addon: karpenter
                   namespace: kube-system
-                  chart: cluster-autoscaler
-                  repo: https://kubernetes.github.io/autoscaler
-                  version: "9.44.0"
+                  chart: karpenter
+                  repo: oci://public.ecr.aws/karpenter
+                  version: "1.8.2"
                 - addon: external-dns
                   namespace: external-dns
                   chart: external-dns
                   repo: https://kubernetes-sigs.github.io/external-dns
-                  version: "1.15.1"
+                  version: "1.19.0"
                 - addon: cert-manager
                   namespace: cert-manager
                   chart: cert-manager
@@ -52,22 +48,22 @@ spec:
                   namespace: external-secrets
                   chart: external-secrets
                   repo: https://charts.external-secrets.io
-                  version: "0.20.1"
+                  version: "0.14.4"
                 - addon: kyverno
                   namespace: kyverno
                   chart: kyverno
                   repo: https://kyverno.github.io/kyverno/
-                  version: "3.5.2"
-                - addon: gatekeeper
-                  namespace: gatekeeper-system
-                  chart: gatekeeper
-                  repo: https://open-policy-agent.github.io/gatekeeper/charts
-                  version: "3.18.2"
+                  version: "3.3.4"
                 - addon: velero
                   namespace: velero
                   chart: velero
                   repo: https://vmware-tanzu.github.io/helm-charts
-                  version: "11.3.2"
+                  version: "8.3.0"
+                - addon: aws-for-fluent-bit
+                  namespace: logging
+                  chart: aws-for-fluent-bit
+                  repo: https://aws.github.io/eks-charts
+                  version: "0.1.34"
   goTemplate: true
   goTemplateOptions: ["missingkey=zero"]
   template:
@@ -89,9 +85,6 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
-  # Per-addon Helm values injected via Go template patch.
-  # Reads IRSA ARNs and cluster metadata from GitOps Bridge cluster secret annotations.
-  # Annotation key names come from eks-blueprints-addons gitops_metadata output.
   templatePatch: |
     {{- if eq .addon "aws-load-balancer-controller" }}
     spec:
@@ -101,25 +94,6 @@ spec:
             clusterName: {{ .metadata.annotations.cluster_name }}
             region: {{ .metadata.annotations.aws_region }}
             vpcId: {{ .metadata.annotations.vpc_id }}
-            serviceAccount:
-              create: true
-              name: {{ .metadata.annotations.aws_load_balancer_controller_service_account }}
-              annotations:
-                eks.amazonaws.com/role-arn: {{ .metadata.annotations.aws_load_balancer_controller_iam_role_arn }}
-    {{- end }}
-    {{- if eq .addon "cluster-autoscaler" }}
-    spec:
-      source:
-        helm:
-          valuesObject:
-            autoDiscovery:
-              clusterName: {{ .metadata.annotations.cluster_name }}
-            awsRegion: {{ .metadata.annotations.aws_region }}
-            rbac:
-              serviceAccount:
-                name: {{ .metadata.annotations.cluster_autoscaler_service_account }}
-                annotations:
-                  eks.amazonaws.com/role-arn: {{ .metadata.annotations.cluster_autoscaler_iam_role_arn }}
     {{- end }}
     {{- if eq .addon "karpenter" }}
     spec:
@@ -128,18 +102,6 @@ spec:
           valuesObject:
             settings:
               clusterName: {{ .metadata.annotations.cluster_name }}
-            serviceAccount:
-              annotations:
-                eks.amazonaws.com/role-arn: {{ .metadata.annotations.karpenter_iam_role_arn }}
-    {{- end }}
-    {{- if eq .addon "external-dns" }}
-    spec:
-      source:
-        helm:
-          valuesObject:
-            serviceAccount:
-              annotations:
-                eks.amazonaws.com/role-arn: {{ .metadata.annotations.external_dns_iam_role_arn }}
     {{- end }}
     {{- if eq .addon "cert-manager" }}
     spec:
@@ -147,25 +109,10 @@ spec:
         helm:
           valuesObject:
             installCRDs: true
-            serviceAccount:
-              annotations:
-                eks.amazonaws.com/role-arn: {{ .metadata.annotations.cert_manager_iam_role_arn }}
-    {{- end }}
-    {{- if eq .addon "external-secrets" }}
-    spec:
-      source:
-        helm:
-          valuesObject:
-            serviceAccount:
-              annotations:
-                eks.amazonaws.com/role-arn: {{ .metadata.annotations.external_secrets_iam_role_arn }}
     {{- end }}
     {{- if eq .addon "kyverno" }}
     spec:
       syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
         syncOptions:
           - CreateNamespace=true
           - Replace=true
@@ -202,4 +149,15 @@ spec:
                 volumeMounts:
                   - mountPath: /target
                     name: plugins
+    {{- end }}
+    {{- if eq .addon "aws-for-fluent-bit" }}
+    spec:
+      source:
+        helm:
+          valuesObject:
+            cloudWatchLogs:
+              enabled: true
+              region: {{ .metadata.annotations.aws_region }}
+              logGroupName: /aws/eks/{{ .metadata.annotations.cluster_name }}/fluent-bit
+              autoCreateGroup: true
     {{- end }}
