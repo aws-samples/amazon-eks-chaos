@@ -5,7 +5,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  package: xpkg.upbound.io/upbound/provider-family-aws:v1.22.0
+  package: xpkg.upbound.io/upbound/provider-family-aws:v2.2.0
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
