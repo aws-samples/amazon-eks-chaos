@@ -1,4 +1,4 @@
-apiVersion: s3.aws.upbound.io/v1beta2
+apiVersion: s3.aws.upbound.io/v1beta1
 kind: Bucket
 metadata:
   name: {{ .Values.clusterName }}-velero-backups-{{ .Values.accountId }}
@@ -13,7 +13,7 @@ spec:
   providerConfigRef:
     name: default
 ---
-apiVersion: s3.aws.upbound.io/v1beta2
+apiVersion: s3.aws.upbound.io/v1beta1
 kind: BucketPublicAccessBlock
 metadata:
   name: {{ .Values.clusterName }}-velero-pab
