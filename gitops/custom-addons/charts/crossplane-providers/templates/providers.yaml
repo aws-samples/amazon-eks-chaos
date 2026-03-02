@@ -1,3 +1,14 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: crossplane-pod-identity
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: crossplane
+---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
@@ -6,6 +17,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   package: xpkg.upbound.io/upbound/provider-family-aws:v2.2.0
+  runtimeConfigRef:
+    name: crossplane-pod-identity
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -15,6 +28,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   package: xpkg.upbound.io/upbound/provider-aws-iam:v2.2.0
+  runtimeConfigRef:
+    name: crossplane-pod-identity
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -24,3 +39,5 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   package: xpkg.upbound.io/upbound/provider-aws-s3:v2.2.0
+  runtimeConfigRef:
+    name: crossplane-pod-identity
