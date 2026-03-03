@@ -32,7 +32,7 @@ spec:
                 - addon: karpenter
                   namespace: kube-system
                   chart: karpenter
-                  repo: oci://public.ecr.aws/karpenter
+                  repo: public.ecr.aws/karpenter
                   version: "1.8.2"
                 - addon: external-dns
                   namespace: external-dns
